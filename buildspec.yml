@@ -1,45 +1,43 @@
-注意: YOUR\_AWS\_ACCOUNT\_ID と YOUR\_AWS\_REGION (例: ap-northeast-1) の部分を、ご自身の環境に合わせて書き換えてください。  
-   YAML  
-   version: 0.2
+version: 0.2
 
-   env:  
-     variables:  
-       AWS\_ACCOUNT\_ID: "914319168149"  
-       AWS\_DEFAULT\_REGION: "ap-northeast-1"  
-       IMAGE\_REPO\_NAME: "my-webapp-repo-github"  
-       ECS\_CLUSTER\_NAME: "my-cluster"  
-       ECS\_SERVICE\_NAME: "my-webapp-service"  
-       ECS\_TASK\_DEFINITION\_NAME: "my-webapp-task"
+env:
+  variables:
+    AWS_ACCOUNT_ID: "914319168149"
+    AWS_DEFAULT_REGION: "ap-northeast-1"
+    IMAGE_REPO_NAME: "my-webapp-repo-github"
+    ECS_CLUSTER_NAME: "my-cluster"
+    ECS_SERVICE_NAME: "my-webapp-service"
+    ECS_TASK_DEFINITION_NAME: "my-webapp-task"
 
-   phases:  
-     pre\_build:  
-       commands:  
-         \- echo Logging in to Amazon ECR...  
-         \- REPOSITORY\_URI=$AWS\_ACCOUNT\_ID.dkr.ecr.$AWS\_DEFAULT\_REGION.amazonaws.com/$IMAGE\_REPO\_NAME  
-         \- aws ecr get-login-password \--region $AWS\_DEFAULT\_REGION | docker login \--username AWS \--password-stdin $REPOSITORY\_URI
+phases:
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - REPOSITORY_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $REPOSITORY_URI
 
-     build:  
-       commands:  
-         \- echo Build started on \`date\`  
-         \- COMMIT\_HASH=$(echo $CODEBUILD\_RESOLVED\_SOURCE\_VERSION | cut \-c 1-7)  
-         \- IMAGE\_TAG=${COMMIT\_HASH:=latest}  
-         \- echo Building the Docker image with tag $IMAGE\_TAG...  
-         \- docker build \-t $REPOSITORY\_URI:$IMAGE\_TAG .  
-         \- echo Pushing the Docker image...  
-         \- docker push $REPOSITORY\_URI:$IMAGE\_TAG
+  build:
+    commands:
+      - echo Build started on `date`
+      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - IMAGE_TAG=${COMMIT_HASH:=latest}
+      - echo Building the Docker image with tag $IMAGE_TAG...
+      - docker build -t $REPOSITORY_URI:$IMAGE_TAG .
+      - echo Pushing the Docker image...
+      - docker push $REPOSITORY_URI:$IMAGE_TAG
 
-     post\_build:  
-       commands:  
-         \- echo Build completed on \`date\`  
-         \- echo Creating new task definition...  
-         \- IMAGE\_URI\_WITH\_TAG=$REPOSITORY\_URI:$IMAGE\_TAG  
-         \# taskdef.jsonのプレースホルダーを、ビルドした実際のイメージURIに置き換える  
-         \- sed \-i \-e "s|\<IMAGE\_URI\_PLACEHOLDER\>|$IMAGE\_URI\_WITH\_TAG|g" taskdef.json  
-         \# 新しいタスク定義を登録し、そのリビジョンを取得  
-         \- NEW\_TASK\_INFO=$(aws ecs register-task-definition \--cli-input-json file://taskdef.json)  
-         \- NEW\_REVISION=$(echo $NEW\_TASK\_INFO | jq .taskDefinition.revision)  
-         \- echo "New task definition revision: $NEW\_REVISION"  
-         \# ECSサービスを更新して、新しいタスク定義を適用  
-         \- echo "Updating ECS service..."  
-         \- aws ecs update-service \--cluster $ECS\_CLUSTER\_NAME \--service $ECS\_SERVICE\_NAME \--task-definition "$ECS\_TASK\_DEFINITION\_NAME:$NEW\_REVISION" \--force-new-deployment  
-         \- echo "ECS service updated successfully."
+  post_build:
+    commands:
+      - echo Build completed on `date`
+      - echo Creating new task definition...
+      - IMAGE_URI_WITH_TAG=$REPOSITORY_URI:$IMAGE_TAG
+      # taskdef.jsonのプレースホルダーを、ビルドした実際のイメージURIに置き換える
+      - sed -i -e "s|<IMAGE_URI_PLACEHOLDER>|$IMAGE_URI_WITH_TAG|g" taskdef.json
+      # 新しいタスク定義を登録し、そのリビジョンを取得
+      - NEW_TASK_INFO=$(aws ecs register-task-definition --cli-input-json file://taskdef.json)
+      - NEW_REVISION=$(echo $NEW_TASK_INFO | jq .taskDefinition.revision)
+      - echo "New task definition revision: $NEW_REVISION"
+      # ECSサービスを更新して、新しいタスク定義を適用
+      - echo "Updating ECS service..."
+      - aws ecs update-service --cluster $ECS_CLUSTER_NAME --service $ECS_SERVICE_NAME --task-definition "$ECS_TASK_DEFINITION_NAME:$NEW_REVISION" --force-new-deployment
+      - echo "ECS service updated successfully."
