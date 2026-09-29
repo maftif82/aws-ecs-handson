@@ -34,7 +34,7 @@ phases:
       - sed -i -e "s|<IMAGE_URI_PLACEHOLDER>|$IMAGE_URI_WITH_TAG|g" taskdef.json
       - NEW_TASK_INFO=$(aws ecs register-task-definition --cli-input-json file://taskdef.json)
       - NEW_REVISION=$(echo $NEW_TASK_INFO | jq .taskDefinition.revision)
-      - echo "New task definition revision: $NEW_REVISION"
+      - 'echo "New task definition revision: $NEW_REVISION"'
       - echo "Updating ECS service..."
       - aws ecs update-service --cluster $ECS_CLUSTER_NAME --service $ECS_SERVICE_NAME --task-definition "$ECS_TASK_DEFINITION_NAME:$NEW_REVISION" --force-new-deployment
       - echo "ECS service updated successfully."
